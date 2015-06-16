@@ -601,6 +601,93 @@
     
 }
 
+- (void) selectPickerWithAccessibilityLabel:(NSString *)label value:(NSArray*)pickerColumnValues pickerType:(KIFPickerType)pickerType {
+    
+    [self runBlock:^KIFTestStepResult(NSError **error) {
+        NSInteger columnCount = [pickerColumnValues count];
+        NSMutableArray* found_values = [NSMutableArray arrayWithCapacity:columnCount];
+        for (NSInteger componentIndex = 0; componentIndex < columnCount; componentIndex++) {
+            [found_values addObject:[NSNumber numberWithBool:NO]];
+        }
+        
+        //Find the picker view
+        UIPickerView *pickerView = nil;
+        UIAccessibilityElement *element = nil;
+        
+        [self waitForAccessibilityElement:&element view:&pickerView withLabel:label value:nil traits:UIAccessibilityTraitNone tappable:NO];
+    
+        if ([pickerView isKindOfClass:[UIDatePicker class]]) {
+            pickerView = pickerView.subviews[0];
+        }
+        
+        NSInteger componentCount = [pickerView.dataSource numberOfComponentsInPickerView:pickerView];
+        KIFTestCondition(componentCount == columnCount, error, @"The UIDatePicker does not have the expected column count.");
+        
+        for (NSInteger componentIndex = 0; componentIndex < componentCount; componentIndex++) {
+            NSInteger rowCount = [pickerView.dataSource pickerView:pickerView numberOfRowsInComponent:componentIndex];
+            for (NSInteger rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+                NSString *rowTitle = nil;
+                if ([pickerView.delegate respondsToSelector:@selector(pickerView:titleForRow:forComponent:)]) {
+                    rowTitle = [pickerView.delegate pickerView:pickerView titleForRow:rowIndex forComponent:componentIndex];
+                } else if ([pickerView.delegate respondsToSelector:@selector(pickerView:viewForRow:forComponent:reusingView:)]) {
+                    
+                    UIView *rowView = [pickerView.delegate pickerView:pickerView viewForRow:rowIndex forComponent:componentIndex reusingView:nil];
+                    UILabel *label;
+                    if ([rowView isKindOfClass:[UILabel class]] ) {
+                        label = (id)rowView;
+                    } else {
+                        // This delegate inserts views directly, so try to figure out what the title is by looking for a label
+                        NSArray *labels = [rowView subviewsWithClassNameOrSuperClassNamePrefix:@"UILabel"];
+                        label = (labels.count > 0 ? labels[0] : nil);
+                    }
+                    rowTitle = label.text;
+                }
+                
+                if (rowIndex==[pickerView selectedRowInComponent:componentIndex] && [rowTitle isEqual:pickerColumnValues[componentIndex]]){
+                    [found_values replaceObjectAtIndex:componentIndex withObject:@(YES)];
+                    break;
+                }
+                else if ([rowTitle isEqual:pickerColumnValues[componentIndex]]) {
+                    [pickerView selectRow:rowIndex inComponent:componentIndex animated:false];
+                    CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1, false);
+                    
+                    // Tap in the middle of the picker view to select the item
+                    [pickerView tap];
+                    [self waitForTimeInterval:0.5];
+                    
+                    // The combination of selectRow:inComponent:animated: and tap does not consistently result in
+                    // pickerView:didSelectRow:inComponent: being called on the delegate. We need to do it explicitly.
+                    if ([pickerView.delegate respondsToSelector:@selector(pickerView:didSelectRow:inComponent:)]) {
+                        [pickerView.delegate pickerView:pickerView didSelectRow:rowIndex inComponent:componentIndex];
+                    }
+                    
+                    [found_values replaceObjectAtIndex:componentIndex withObject:@(YES)];
+                    break;
+                }
+            }
+            if (found_values[componentIndex] == [NSNumber numberWithBool:YES]) {
+                continue;
+            }
+        }
+        
+        // Support multiple column by adding flag to check if the value found in
+        // at-least one column
+        BOOL _foundInOneColumn = NO;
+        for (NSInteger componentIndex = 0; componentIndex < columnCount; componentIndex++) {
+            if (found_values[componentIndex] != [NSNumber numberWithBool:NO]) {
+                _foundInOneColumn = YES;
+            }
+        }
+        
+        if (!_foundInOneColumn) {
+            KIFTestCondition(NO, error, @"Failed to select from Picker.");
+            return KIFTestStepResultFailure;
+        }
+        
+        return KIFTestStepResultSuccess;
+    }];
+}
+
 - (void)setOn:(BOOL)switchIsOn forSwitchWithAccessibilityLabel:(NSString *)label
 {
     UIView *view = nil;
