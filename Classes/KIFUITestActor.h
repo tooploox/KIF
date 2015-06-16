@@ -340,6 +340,7 @@ static inline KIFDisplacement KIFDisplacementForSwipingInDirection(KIFSwipeDirec
  @param datePickerColumnValues Each element in the NSArray represents a rotating wheel in the date picker control. Elements from 0 - n are listed in the order of the rotating wheels, left to right.
  */
 - (void) selectDatePickerValue:(NSArray*)datePickerColumnValues;
+- (void) selectDatePickerWithAccessibilityLabel:(NSString *)label value:(NSArray*)datePickerColumnValues;
 
 /*!
  @abstract Toggles a UISwitch into a specified position.
