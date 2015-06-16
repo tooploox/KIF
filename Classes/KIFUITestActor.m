@@ -459,6 +459,10 @@
     [self selectPickerValue:datePickerColumnValues pickerType:KIFUIDatePicker];
 }
 
+- (void)selectDatePickerWithAccessibilityLabel:(NSString *)label value:(NSArray*)datePickerColumnValues {
+    [self selectPickerWithAccessibilityLabel:label value:datePickerColumnValues pickerType:KIFUIDatePicker];
+}
+
 - (void)selectPickerViewRowWithTitle:(NSString *)title
 {
     NSArray *dataToSelect = @[title];
